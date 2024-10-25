@@ -1,5 +1,5 @@
 name: Release Creation
-description: Action that compresses original images into a smaller form and then takes inputs from the referencing repo to package them into a zip file and attach as an artifact for a release. 
+description: Action that compresses original images and takes inputs from the referencing repo to package them into a zip file and attach as an artifact for a release. 
 
 
 on:
