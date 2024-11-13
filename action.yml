@@ -1,7 +1,6 @@
 name: Release Creation
 description: Compresses images and creates zip artifact for release
 
-
 inputs:
   tag_name: 
     description: 'The release tag we upload to'
@@ -35,3 +34,4 @@ runs:
      uses: softprops/action-gh-release@v2
      with:
         files: protocol.zip
+        tag_name: tag_name
