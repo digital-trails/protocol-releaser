@@ -19,7 +19,8 @@ runs:
      shell: bash
    
    - name: Resize all images in-place
-     run:  |
+     continue-on-error: true
+     run: |
        shopt -s globstar
        vipsthumbnail ** --size 1300x2600
        for f in **/tn_*; do mv "$f" "$(echo "$f" | sed s/tn_//)"; done
