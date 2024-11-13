@@ -28,7 +28,7 @@ runs:
    
    - name: Create release zip
      run: |
-        zip -r protocol.zip
+        zip -r protocol.zip .
      shell: bash
    
    - name: Upload release ZIP
