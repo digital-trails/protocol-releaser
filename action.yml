@@ -1,74 +1,33 @@
 name: Release Creation
 description: Compresses images and creates zip artifact for release
 
-
 on:
   workflow_call:
     inputs:
-      image_folder: 
-        description: 'The folder with the original images'
-        required: true
-        type: string
-      new_image_folder:
-        description: 'The folder where the compressed images go'
-        required: true
-        type: string
-      complete_json:
-        description: 'Compiled code'
+      tag_name: 
+        default: ${{ github.ref }}
+        description: 'The release tag we upload to'
         required: false
         type: string
-      json_folder:
-        description: 'folder with jsons'
-        required: false
-        type: string
-      images_folder:
-        description: 'compressed images'
-        required: false
-        type: string
-      videos_folder:
-        description: 'videos folder'
-        required: false
-        type: string
-        
 jobs:
   image_resize_and_release:
     name: Image Resize Job
     runs-on: ubuntu-latest
-    permissions:
-      # Give the default GITHUB_TOKEN write permission to commit and push the
-      # added or changed files to the repository.
-      contents: write
     steps:
      - name: checkout
        uses: actions/checkout@v4
      - name: Install LibVips
        run: sudo apt install libvips-tools
-     - name: resize jpeg images
+     - name: Resize all images in-place
        run:  |
-         IMAGE_FOLDER=${{ inputs.image_folder }}
-         NEW_IMAGE_FOLDER=${{ inputs.new_image_folder }}
-         vipsthumbnail $IMAGE_FOLDER*.jpeg --size 1300x2600 -o $(readlink -f "$NEW_IMAGE_FOLDER%s.jpeg")
-     - name: Create ZIP file of specific folders
+         shopt -s globstar
+         vipsthumbnail ** --size 1300x2600
+         for f in **/tn_*; do mv "$f" "$(echo "$f" | sed s/tn_//)"; done
+     - name: Create release zip
        run: |
-          mkdir artifact
-          zip -r artifact/my-release.zip ${{ inputs.complete_json }} ${{ inputs.json_folder }} ${{ inputs.images_folder }} ${{ inputs.videos_folder }}
-     - name: Create GitHub Release
-       id: create_release
-       uses: actions/create-release@v1
-       env:
-         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # GitHub automatically provides this token
+          zip -r protocol.zip
+     - name: Upload release ZIP
+       uses: softprops/action-gh-release@v2
        with:
-          tag_name: "${{ github.ref_name }}"  # This uses the tag that triggered the workflow
-          release_name: "Release ${{ github.run_id }}"
-          draft: false
-          prerelease: false
-
-     - name: Upload ZIP to release
-       uses: actions/upload-release-asset@v1
-       env:
-         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-       with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}  # URL to upload to the release
-          asset_path: artifact/my-release.zip  # Path to the ZIP file
-          asset_name: my-release.zip  # Name of the file on GitHub release
-          asset_content_type: application/zip
+          files: protocol.zip
+          tag_name: tag_name
