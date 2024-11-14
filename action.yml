@@ -30,11 +30,11 @@ runs:
      run: for f in **/tn_*; do mv "$f" "$(echo "$f" | sed s/tn_//)"; done
      shell: bash
 
-  - name: Remove repo artifacts
-    run: |
-      rm -rf ./.git
-      rm -rf ./.github
-    shell: bash
+   - name: Remove repo artifacts
+     run: |
+       rm -rf ./.git
+       rm -rf ./.github
+     shell: bash
 
    - name: Create release zip
      run: zip -r protocol.zip .
