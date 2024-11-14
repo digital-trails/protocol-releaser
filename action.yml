@@ -14,7 +14,7 @@ runs:
      uses: actions/checkout@v4
 
    - name: Install LibVips
-     run: sudo apt install libvips-tools
+     run: sudo apt install libvips-tools rename
      shell: bash
 
    - name: Enable globstar
@@ -26,8 +26,8 @@ runs:
      run: vipsthumbnail ** --size 1300x2600
      shell: bash
 
-   - name: Move resized images
-     run: for f in **/tn_*; do mv "$f" "$(echo "$f" | sed s/tn_//)"; done
+   - name: Rename resized images
+     run: find . -name tn_* -exec rename -f -d 's/tn_//' {} \;
      shell: bash
 
    - name: Remove repo artifacts
