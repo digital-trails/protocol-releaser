@@ -26,9 +26,9 @@ runs:
      run: vipsthumbnail ** --size 1300x2600
      shell: bash
 
-  - name: Move resized images
-    run: for f in **/tn_*; do mv "$f" "$(echo "$f" | sed s/tn_//)"; done
-    shell: bash
+   - name: Move resized images
+     run: for f in **/tn_*; do mv "$f" "$(echo "$f" | sed s/tn_//)"; done
+     shell: bash
 
   - name: Remove repo artifacts
     run: |
