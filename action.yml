@@ -27,7 +27,7 @@ runs:
      shell: bash
 
    - name: Rename resized images
-     run: find . -name tn_* -exec rename -f -d 's/tn_//' {} \;
+     run: find . -type f -name tn_* -exec rename -f -d 's/tn_//' {} \;
      shell: bash
 
    - name: Remove repo artifacts
