@@ -12,24 +12,34 @@ runs:
   steps:
    - name: checkout
      uses: actions/checkout@v4
-   
+
    - name: Install LibVips
      run: sudo apt install libvips-tools
      shell: bash
-   
-   - name: Resize all images in-place
-     continue-on-error: true
-     run: |
-       shopt -s globstar
-       vipsthumbnail ** --size 1300x2600
-       for f in **/tn_*; do mv "$f" "$(echo "$f" | sed s/tn_//)"; done
+
+   - name: Enable globstar
+     run: shopt -s globstar
      shell: bash
-   
+
+   - name: Resize all images using default names
+     continue-on-error: true # if vipsthumbnail hits a non-image file it will exit with code 255; continue-on-error ignores this. 
+     run: vipsthumbnail ** --size 1300x2600
+     shell: bash
+
+  - name: Move resized images
+    run: for f in **/tn_*; do mv "$f" "$(echo "$f" | sed s/tn_//)"; done
+    shell: bash
+
+  - name: Remove repo artifacts
+    run: |
+      rm -rf ./.git
+      rm -rf ./.github
+    shell: bash
+
    - name: Create release zip
-     run: |
-        zip -r protocol.zip .
+     run: zip -r protocol.zip .
      shell: bash
-   
+
    - name: Upload release ZIP
      uses: softprops/action-gh-release@v2
      with:
