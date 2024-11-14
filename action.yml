@@ -17,13 +17,11 @@ runs:
      run: sudo apt install libvips-tools rename
      shell: bash
 
-   - name: Enable globstar
-     run: shopt -s globstar
-     shell: bash
-
    - name: Resize all images using default names
      continue-on-error: true # if vipsthumbnail hits a non-image file it will exit with code 255; continue-on-error ignores this. 
-     run: vipsthumbnail ** --size 1300x2600
+     run: |
+       shopt -s globstar
+       vipsthumbnail ** --size 1300x2600
      shell: bash
 
    - name: Rename resized images
