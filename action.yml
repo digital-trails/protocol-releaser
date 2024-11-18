@@ -19,10 +19,6 @@ runs:
    - name: checkout
      uses: actions/checkout@v4
 
-   - name: Change to source directory
-     run: cd ./${{inputs.src_directory}}
-     shell: bash
-
    - name: Install LibVips
      run: sudo apt install libvips-tools rename
      shell: bash
@@ -35,11 +31,13 @@ runs:
      shell: bash
 
    - name: Rename resized images
-     run: find . -type f -name tn_* -exec rename -f -d 's/tn_//' {} \;
+     run: |
+       cd ./${{inputs.src_directory}}
+       find . -type f -name tn_* -exec rename -f -d 's/tn_//' {} \;
      shell: bash
 
    - name: Create release zip
-     run: zip -r protocol.zip .
+     run: zip -r protocol.zip ./${{inputs.src_directory}}
      shell: bash
 
    - name: Upload release ZIP
