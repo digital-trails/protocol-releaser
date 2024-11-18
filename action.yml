@@ -7,11 +7,21 @@ inputs:
     required: false
     type: string
 
+  src_directory: 
+    description: 'The directory to zip attached to release'
+    required: false
+    type: string
+    default: 'src'
+
 runs:
   using: "composite"
   steps:
    - name: checkout
      uses: actions/checkout@v4
+
+  - name: Change to source directory
+     run: cd ./${{src_directory}}
+     shell: bash
 
    - name: Install LibVips
      run: sudo apt install libvips-tools rename
@@ -26,12 +36,6 @@ runs:
 
    - name: Rename resized images
      run: find . -type f -name tn_* -exec rename -f -d 's/tn_//' {} \;
-     shell: bash
-
-   - name: Remove repo artifacts
-     run: |
-       rm -rf ./.git
-       rm -rf ./.github
      shell: bash
 
    - name: Create release zip
