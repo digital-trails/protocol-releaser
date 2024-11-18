@@ -20,7 +20,7 @@ runs:
      uses: actions/checkout@v4
 
    - name: Change to source directory
-     run: cd ./${{src_directory}}
+     run: cd ./${{inputs.src_directory}}
      shell: bash
 
    - name: Install LibVips
