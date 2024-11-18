@@ -19,7 +19,7 @@ runs:
    - name: checkout
      uses: actions/checkout@v4
 
-  - name: Change to source directory
+   - name: Change to source directory
      run: cd ./${{src_directory}}
      shell: bash
 
