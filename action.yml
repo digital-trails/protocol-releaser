@@ -37,11 +37,13 @@ runs:
      shell: bash
 
    - name: Create release zip
-     run: zip -r protocol.zip ./${{inputs.src_directory}}
+     run: |
+       cd ./${{inputs.src_directory}}
+       zip -r protocol.zip .
      shell: bash
 
    - name: Upload release ZIP
      uses: softprops/action-gh-release@v2
      with:
-        files: protocol.zip
+        files: ./${{inputs.src_directory}}/protocol.zip
         tag_name: ${{ inputs.tag_name }}
