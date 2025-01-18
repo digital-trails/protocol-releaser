@@ -20,7 +20,9 @@ runs:
      uses: actions/checkout@v4
 
    - name: Install LibVips
-     run: sudo apt install libvips-tools rename
+     run: |
+       sudo apt update
+       sudo apt install libvips-tools rename
      shell: bash
 
    - name: Resize all images using default names
