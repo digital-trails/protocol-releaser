@@ -1,2 +1,2 @@
-# protocol-publisher
-A GitHub action to prepare and publish a protocol repo for use in the Digital Trails app.
+# protocol-releaser
+A GitHub action to prepare and release a protocol for Digital Trails.
