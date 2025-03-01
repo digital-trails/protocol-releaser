@@ -23,7 +23,10 @@ runs:
      uses: mfinelli/setup-imagemagick@v6
 
    - name: Resize all images using default names
-     run: find . -type f -regextype posix-egrep -regex ".+\.(gif|bmp|png|jpg|jpeg)$" -size +100k | parallel magick mogrify -define jpeg:size=650x1300 png:compression-level=0 -geometry 650x1300 -quality 70 "{}"
+     run: |
+       find . -type f -regextype posix-egrep -regex ".+\.(jpg|jpeg)$" -size +100k | parallel magick mogrify -define jpeg:size=650x1300 -geometry 650x1300 -quality 70 "{}"
+       find . -type f -regextype posix-egrep -regex ".+\.(png)$" -size +100k | parallel magick mogrify -define png:compression-level=0 -geometry 650x1300 -quality 70 "{}"
+       find . -type f -regextype posix-egrep -regex ".+\.(gif|bmp)$" -size +100k | parallel magick mogrify -geometry 650x1300 -quality 70 "{}"
      shell: bash
 
    - name: Create release zip
