@@ -19,23 +19,11 @@ runs:
    - name: checkout
      uses: actions/checkout@v4
 
-   - name: Install LibVips
-     run: |
-       sudo apt update
-       sudo apt install libvips-tools rename
-     shell: bash
+   - name: Install ImageMagick
+     uses: mfinelli/setup-imagemagick@v6
 
    - name: Resize all images using default names
-     continue-on-error: true # if vipsthumbnail hits a non-image file it will exit with code 255; continue-on-error ignores this. 
-     run: |
-       shopt -s globstar
-       vipsthumbnail ** --size 1300x2600
-     shell: bash
-
-   - name: Rename resized images
-     run: |
-       cd ./${{inputs.src_directory}}
-       find . -type f -name tn_* -exec rename -f -d 's/tn_//' {} \;
+     run: find . -type f -regextype posix-egrep -regex ".+\.(gif|bmp|png|jpg|jpeg)$" -size +100k | parallel magick mogrify -define jpeg:size=650x1300 png:compression-level=0 -geometry 650x1300 -quality 70 "{}"
      shell: bash
 
    - name: Create release zip
