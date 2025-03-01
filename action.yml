@@ -19,14 +19,26 @@ runs:
    - name: checkout
      uses: actions/checkout@v4
 
-   - name: Install ImageMagick
-     uses: mfinelli/setup-imagemagick@v6
-
-   - name: Resize all images using default names
+   - name: Install LibVips
      run: |
-       find . -type f -regextype posix-egrep -regex ".+\.(jpg|jpeg)$" -size +100k | parallel magick mogrify -define jpeg:size=650x1300 -geometry 650x1300 -quality 70 "{}"
-       find . -type f -regextype posix-egrep -regex ".+\.(png)$" -size +100k | parallel magick mogrify -define png:compression-level=0 -geometry 650x1300 -quality 70 "{}"
-       find . -type f -regextype posix-egrep -regex ".+\.(gif|bmp)$" -size +100k | parallel magick mogrify -geometry 650x1300 -quality 70 "{}"
+       sudo apt update
+       sudo apt install libvips-tools rename libjpeg-turbo8
+     shell: bash
+
+   - name: Resize images to optimized thumbnails
+     run: |
+       cd ./${{inputs.src_directory}}
+       find -name '*.jpeg' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o tn_%s.jpeg[Q=70,profile=none,strip=true]
+       find -name '*.jpg' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o tn_%s.jpg[Q=70,profile=none,strip=true]
+       find -name '*.png' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o tn_%s.png[Q=70,profile=none,strip=true,compression=0]
+       find -name '*.gif' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o tn_%s.gif[strip=true]
+       find . -type f -name tn_* -exec rename -f -d 's/tn_//' {} \;
+     shell: bash
+
+   - name: Replace images with their thumbnails
+     run: |
+       cd ./${{inputs.src_directory}}
+       find . -type f -name tn_* -exec rename -f -d 's/tn_//' {} \;
      shell: bash
 
    - name: Create release zip
