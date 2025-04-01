@@ -44,6 +44,7 @@ runs:
    - name: Rename all directories and files to lowercase
      run: |
        find ./${{inputs.src_directory}} -depth -exec rename 's/(.*)\/([^\/]*)/$1\/\L$2/' {} \;
+     shell: bash  
 
    - name: Create release zip
      run: |
