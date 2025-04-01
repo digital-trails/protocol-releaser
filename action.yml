@@ -41,10 +41,11 @@ runs:
        find . -type f -name tn_* -exec rename -f -d 's/tn_//' {} \;
      shell: bash
 
-   - name: Rename all directories and files to lowercase
-     run: |
-       find ./${{inputs.src_directory}} -depth -exec rename -d 'y/A-Z/a-z/' {} \;
-     shell: bash  
+# Removed because it conflicted with Selection flows, which displays filename capitalization
+#   - name: Rename all directories and files to lowercase
+#     run: |
+#       find ./${{inputs.src_directory}} -depth -exec rename -d 'y/A-Z/a-z/' {} \;
+#     shell: bash  
 
    - name: Create release zip
      run: |
