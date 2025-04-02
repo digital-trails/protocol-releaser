@@ -21,7 +21,7 @@ runs:
        time ( \
          sudo apt update; \
          sudo apt install libvips-tools rename libjpeg-turbo8; \
-      )
+       )
      shell: bash
 
    - name: Resize images to optimized thumbnails
