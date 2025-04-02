@@ -27,10 +27,10 @@ runs:
    - name: Resize images to optimized thumbnails
      run: |
        time ( \
-         find ./${{inputs.src_directory}}/* -name '*.jpeg' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o .jpeg[Q=70,profile=none,strip=true] | sponge "{}"; \
-         find ./${{inputs.src_directory}}/* -name '*.jpg' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o .jpg[Q=70,profile=none,strip=true] | sponge "{}"; \
-         find ./${{inputs.src_directory}}/* -name '*.png' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o .png[Q=70,profile=none,strip=true,compression=0] | sponge "{}"; \
-         find ./${{inputs.src_directory}}/* -name '*.gif' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o .gif[strip=true] | sponge "{}"; \
+         find ./${{inputs.src_directory}}/* -name '*.jpeg' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o .jpeg[Q=70,profile=none,strip=true] "|" sponge "{}"; \
+         find ./${{inputs.src_directory}}/* -name '*.jpg' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o .jpg[Q=70,profile=none,strip=true] "|" sponge "{}"; \
+         find ./${{inputs.src_directory}}/* -name '*.png' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o .png[Q=70,profile=none,strip=true,compression=0] "|" sponge "{}"; \
+         find ./${{inputs.src_directory}}/* -name '*.gif' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o .gif[strip=true] "|" sponge "{}"; \
        )
      shell: bash
 
