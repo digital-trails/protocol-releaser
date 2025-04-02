@@ -16,39 +16,39 @@ inputs:
 runs:
   using: "composite"
   steps:
-   - name: checkout
-     uses: actions/checkout@v4
-
    - name: Install LibVips
      run: |
-       sudo apt update
-       sudo apt install libvips-tools rename libjpeg-turbo8
+       time ( \
+         sudo apt update; \
+         sudo apt install libvips-tools rename libjpeg-turbo8; \
+      )
      shell: bash
 
    - name: Resize images to optimized thumbnails
      run: |
-       cd ./${{inputs.src_directory}}
-       find -name '*.jpeg' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o tn_%s.jpeg[Q=70,profile=none,strip=true]
-       find -name '*.jpg' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o tn_%s.jpg[Q=70,profile=none,strip=true]
-       find -name '*.png' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o tn_%s.png[Q=70,profile=none,strip=true,compression=0]
-       find -name '*.gif' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o tn_%s.gif[strip=true]
-       find . -type f -name tn_* -exec rename -f -d 's/tn_//' {} \;
+       time ( \
+         find ./${{inputs.src_directory}}/* -name '*.jpeg' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o tn_%s.jpeg[Q=70,profile=none,strip=true]; \
+         find ./${{inputs.src_directory}}/* -name '*.jpg' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o tn_%s.jpg[Q=70,profile=none,strip=true]; \
+         find ./${{inputs.src_directory}}/* -name '*.png' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o tn_%s.png[Q=70,profile=none,strip=true,compression=0]; \
+         find ./${{inputs.src_directory}}/* -name '*.gif' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o tn_%s.gif[strip=true]; \
+       )
      shell: bash
 
    - name: Replace images with their thumbnails
      run: |
-       cd ./${{inputs.src_directory}}
-       find . -type f -name tn_* -exec rename -f -d 's/tn_//' {} \;
+       time find ./${{inputs.src_directory}}/* -type f -name tn_* -exec rename -f -d 's/tn_//' {} \;
      shell: bash
 
-# This conflicts with Selection Flows but is necessary due to git's handling of capitalization
-# making it impossible for protocol creators to truly control the capitalization of their files.
+   # This is step was added due to git not supporting capitalization control
    - name: Rename all directories and files to lowercase
      run: |
-       find ./${{inputs.src_directory}} -depth -regex ".*[A-Z]+.*" -type d -exec rename -d 'y/A-Z/a-z/' {} \;
-       find ./${{inputs.src_directory}} -depth -regex ".*[A-Z]+.*" -type f -exec rename -d 'y/A-Z/a-z/' {} \;
+       time ( \
+         find ./${{inputs.src_directory}}/* -depth -regex ".*[A-Z]+.*" -type d -exec rename -d 'y/A-Z/a-z/' {} \;; \
+         find ./${{inputs.src_directory}}/* -depth -regex ".*[A-Z]+.*" -type f -exec rename -d 'y/A-Z/a-z/' {} \;; \
+       )
      shell: bash  
 
+    # For zip -r to do what we want, it is necessary to change directory first
    - name: Create release zip
      run: |
        cd ./${{inputs.src_directory}}
