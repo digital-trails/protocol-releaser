@@ -42,10 +42,7 @@ runs:
    # This is step was added due to git not supporting capitalization control
    - name: Rename all directories and files to lowercase
      run: |
-       time ( \
-         find ./${{inputs.src_directory}}/* -depth -regex ".*[A-Z]+.*" -type d -exec rename -d 'y/A-Z/a-z/' {} \;; \
-         find ./${{inputs.src_directory}}/* -depth -regex ".*[A-Z]+.*" -type f -exec rename -d 'y/A-Z/a-z/' {} \;; \
-       )
+       time find ./${{inputs.src_directory}}/* -depth -name "*[A-Z]*" -exec rename -d 'y/A-Z/a-z/' {} \;
      shell: bash  
 
     # For zip -r to do what we want, it is necessary to change directory first
