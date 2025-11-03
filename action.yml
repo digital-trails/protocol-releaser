@@ -56,4 +56,5 @@ runs:
      uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631
      with:
         files: ./${{inputs.src_directory}}/protocol.zip
+        files: ./${{inputs.src_directory}}/version.txt
         tag_name: ${{ inputs.tag_name }}
