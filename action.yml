@@ -16,46 +16,41 @@ inputs:
 runs:
   using: "composite"
   steps:
-   - name: Install LibVips
-     run: |
-       time ( \
-         sudo apt update; \
-         sudo apt install libvips-tools rename libjpeg-turbo8 moreutils; \
-       )
-     shell: bash
+    - name: Install LibVips
+      run: |
+        time ( \
+          sudo apt update; \
+          sudo apt install -y libvips-tools rename libjpeg-turbo8 moreutils; \
+        )
+      shell: bash
 
-   - name: Resize images to optimized thumbnails
-     run: |
-       time ( \
-         find ./${{inputs.src_directory}}/* -name '*.jpeg' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o .jpeg[Q=70,profile=none,strip=true] "|" sponge "{}"; \
-         find ./${{inputs.src_directory}}/* -name '*.jpg' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o .jpg[Q=70,profile=none,strip=true] "|" sponge "{}"; \
-         find ./${{inputs.src_directory}}/* -name '*.png' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o .png[Q=70,profile=none,strip=true,compression=0] "|" sponge "{}"; \
-         find ./${{inputs.src_directory}}/* -name '*.gif' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o .gif[strip=true] "|" sponge "{}"; \
-       )
-     shell: bash
+    - name: Resize images to optimized thumbnails
+      run: |
+        time ( \
+          find ./${{ inputs.src_directory }}/* -name '*.jpeg' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o .jpeg[Q=70,profile=none,strip=true] "|" sponge "{}"; \
+          find ./${{ inputs.src_directory }}/* -name '*.jpg' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o .jpg[Q=70,profile=none,strip=true] "|" sponge "{}"; \
+          find ./${{ inputs.src_directory }}/* -name '*.png' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o .png[Q=70,profile=none,strip=true,compression=0] "|" sponge "{}"; \
+          find ./${{ inputs.src_directory }}/* -name '*.gif' -size +100k | parallel vipsthumbnail "{}" --size 650x1300 --export-profile srgb -o .gif[strip=true] "|" sponge "{}"; \
+        )
+      shell: bash
 
-#   - name: Replace images with their thumbnails
-#     run: |
-#       time find ./${{inputs.src_directory}}/* -type f -name tn_* -exec rename -f -d 's/tn_//' {} \;
-#     shell: bash
-
-   # This step was added due to git not supporting capitalization control
-   - name: Rename all directories and files to lowercase
-     run: |
-       time find ./${{inputs.src_directory}}/* -depth -name "*[A-Z]*" -exec rename -d 'y/A-Z/a-z/' {} \;
-     shell: bash  
+    # This step was added due to git not supporting capitalization control
+    - name: Rename all directories and files to lowercase
+      run: |
+        time find ./${{ inputs.src_directory }}/* -depth -name "*[A-Z]*" -exec rename -d 'y/A-Z/a-z/' {} \;
+      shell: bash  
 
     # For zip -r to do what we want, it is necessary to change directory first
-   - name: Create release zip
-     run: |
-       cd ./${{inputs.src_directory}}
-       zip -r protocol.zip .
-     shell: bash
+    - name: Create release zip
+      run: |
+        cd ./${{ inputs.src_directory }}
+        zip -r protocol.zip .
+      shell: bash
 
-   - name: Upload release ZIP
-     uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631
-     with:
-     files: |
-      ./${{inputs.src_directory}}/protocol.zip
-      ./${{inputs.src_directory}}/version.txt
-     tag_name: ${{ inputs.tag_name }}
+    - name: Upload release ZIP
+      uses: softprops/action-gh-release@da05d552573ad5aba039eaac05058a918a7bf631
+      with:
+        files: |
+          ./${{ inputs.src_directory }}/protocol.zip
+          ./${{ inputs.src_directory }}/version.txt
+        tag_name: ${{ inputs.tag_name }}
