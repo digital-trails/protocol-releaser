@@ -102,16 +102,23 @@ runs:
     # a batch of files (startup is paid per batch, not per file); each output is written next to
     # its input as __resized__<name>, then renamed over it. parallel runs the command through a
     # shell, so it needs the inner quotes.
+    # .jpeg/.jpg files are saved as WebP but keep their names, so references in the protocol JSON
+    # still work: the app's image decoders (Android 10+, iOS 15+) detect the format from the content.
+    # WebP Q75 was about 30% smaller than JPEG Q70 and scored higher on SSIM for leia's images.
     - name: Resize images to optimized thumbnails
       run: |
         work="$RUNNER_TEMP/protocol-releaser"
         if [ ! -s "$work/todo-images" ]; then echo "No images to resize"; exit 0; fi
         time ( \
-          awk '/\.jpeg$/' "$work/todo-images" | parallel -X vipsthumbnail --size "'650x1300>'" --export-profile srgb -o "'__resized__%s.jpeg[Q=70,profile=none,strip=true]'"; \
-          awk '/\.jpg$/' "$work/todo-images" | parallel -X vipsthumbnail --size "'650x1300>'" --export-profile srgb -o "'__resized__%s.jpg[Q=70,profile=none,strip=true]'"; \
+          awk '/\.jpeg$/' "$work/todo-images" | parallel -X vipsthumbnail --size "'650x1300>'" --export-profile srgb -o "'__resized__%s.jpeg.webp[Q=75,strip=true]'"; \
+          awk '/\.jpg$/' "$work/todo-images" | parallel -X vipsthumbnail --size "'650x1300>'" --export-profile srgb -o "'__resized__%s.jpg.webp[Q=75,strip=true]'"; \
           awk '/\.png$/' "$work/todo-images" | parallel -X vipsthumbnail --size "'650x1300>'" --export-profile srgb -o "'__resized__%s.png[profile=none,strip=true,compression=9]'"; \
           awk '/\.gif$/' "$work/todo-images" | parallel -X vipsthumbnail --size "'650x1300>'" --export-profile srgb -o "'__resized__%s.gif[strip=true]'"; \
-          while IFS= read -r f; do mv -f "${f%/*}/__resized__${f##*/}" "$f"; done < "$work/todo-images"; \
+          while IFS= read -r f; do \
+            out="${f%/*}/__resized__${f##*/}"; \
+            case "$f" in *.jpeg|*.jpg) out="$out.webp" ;; esac; \
+            mv -f "$out" "$f"; \
+          done < "$work/todo-images"; \
         )
       shell: bash
 
