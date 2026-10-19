@@ -20,19 +20,22 @@ runs:
       run: |
         time ( \
           sudo apt update; \
-          sudo apt install -y libvips-tools rename libjpeg-turbo8 moreutils; \
+          sudo apt install -y libvips-tools rename libjpeg-turbo8; \
         )
       shell: bash
 
-    # The '>' in --size means only shrink, never enlarge. parallel runs the command
-    # through a shell, so it needs the inner quotes to not become a redirect.
+    # The '>' in --size means only shrink, never enlarge. parallel -X gives each vipsthumbnail
+    # a batch of files (startup is paid per batch, not per file); each output is written next to
+    # its input as __resized__<name>, then renamed over it. parallel runs the command through a
+    # shell, so it needs the inner quotes.
     - name: Resize images to optimized thumbnails
       run: |
         time ( \
-          find ./${{ inputs.src_directory }}/* -name '*.jpeg' -size +100k | parallel vipsthumbnail "{}" --size "'650x1300>'" --export-profile srgb -o .jpeg[Q=70,profile=none,strip=true] "|" sponge "{}"; \
-          find ./${{ inputs.src_directory }}/* -name '*.jpg' -size +100k | parallel vipsthumbnail "{}" --size "'650x1300>'" --export-profile srgb -o .jpg[Q=70,profile=none,strip=true] "|" sponge "{}"; \
-          find ./${{ inputs.src_directory }}/* -name '*.png' -size +100k | parallel vipsthumbnail "{}" --size "'650x1300>'" --export-profile srgb -o .png[profile=none,strip=true,compression=9] "|" sponge "{}"; \
-          find ./${{ inputs.src_directory }}/* -name '*.gif' -size +100k | parallel vipsthumbnail "{}" --size "'650x1300>'" --export-profile srgb -o .gif[strip=true] "|" sponge "{}"; \
+          find ./${{ inputs.src_directory }}/* -name '*.jpeg' ! -name '__resized__*' -size +100k | parallel -X vipsthumbnail --size "'650x1300>'" --export-profile srgb -o "'__resized__%s.jpeg[Q=70,profile=none,strip=true]'"; \
+          find ./${{ inputs.src_directory }}/* -name '*.jpg' ! -name '__resized__*' -size +100k | parallel -X vipsthumbnail --size "'650x1300>'" --export-profile srgb -o "'__resized__%s.jpg[Q=70,profile=none,strip=true]'"; \
+          find ./${{ inputs.src_directory }}/* -name '*.png' ! -name '__resized__*' -size +100k | parallel -X vipsthumbnail --size "'650x1300>'" --export-profile srgb -o "'__resized__%s.png[profile=none,strip=true,compression=9]'"; \
+          find ./${{ inputs.src_directory }}/* -name '*.gif' ! -name '__resized__*' -size +100k | parallel -X vipsthumbnail --size "'650x1300>'" --export-profile srgb -o "'__resized__%s.gif[strip=true]'"; \
+          find ./${{ inputs.src_directory }}/* -type f -name '__resized__*' -exec rename -f -d 's/^__resized__//' {} +; \
         )
       shell: bash
 
