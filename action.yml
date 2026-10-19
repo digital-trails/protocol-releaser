@@ -1,5 +1,5 @@
 name: Release Creation
-description: Compresses images and creates zip artifact for release
+description: Compresses images and videos and creates zip artifact for release
 
 inputs:
   tag_name: 
@@ -12,6 +12,11 @@ inputs:
     required: false
     type: string
     default: 'src'
+
+  compress_videos:
+    description: 'Re-encode .mp4 videos (at most 720p, H.264) to shrink the release'
+    required: false
+    default: 'true'
 
 runs:
   using: "composite"
@@ -44,6 +49,29 @@ runs:
           find ./${{ inputs.src_directory }}/* -name '*.gif' ! -name '__resized__*' -size +100k | parallel -X vipsthumbnail --size "'650x1300>'" --export-profile srgb -o "'__resized__%s.gif[strip=true]'"; \
           find ./${{ inputs.src_directory }}/* -type f -name '__resized__*' -exec rename -f -d 's/^__resized__//' {} +; \
         )
+      shell: bash
+
+    # Re-encodes each .mp4 to H.264 with its shorter side at most 720 (never enlarged), CRF 26,
+    # 8-bit 4:2:0 so phones can decode it in hardware, AAC 96k audio, and the index moved to the
+    # front so playback can start while downloading. A video is only replaced if the result is smaller.
+    - name: Compress videos
+      if: inputs.compress_videos == 'true'
+      run: |
+        videos=$(find ./${{ inputs.src_directory }}/* -type f -name '*.mp4' ! -name '__resized__*')
+        if [ -z "$videos" ]; then echo "No videos to compress"; exit 0; fi
+        time sudo apt install -y ffmpeg
+        while IFS= read -r f; do
+          out="$(dirname "$f")/__resized__$(basename "$f")"
+          start=$SECONDS
+          ffmpeg -nostdin -hide_banner -loglevel error -y -i "$f" \
+            -vf "scale='if(gt(iw,ih),-2,trunc(min(720,iw)/2)*2)':'if(gt(iw,ih),trunc(min(720,ih)/2)*2,-2)'" \
+            -c:v libx264 -preset veryfast -crf 26 -pix_fmt yuv420p \
+            -c:a aac -b:a 96k -movflags +faststart "$out"
+          before=$(stat -c%s "$f")
+          after=$(stat -c%s "$out")
+          if [ "$after" -lt "$before" ]; then mv "$out" "$f"; result=replaced; else rm "$out"; result="kept original (re-encode was not smaller)"; fi
+          echo "$f: $((before / 1024)) KB -> $((after / 1024)) KB in $((SECONDS - start))s, $result"
+        done <<< "$videos"
       shell: bash
 
     # For zip -r to do what we want, it is necessary to change directory first
