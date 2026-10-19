@@ -2,12 +2,12 @@ name: Release Creation
 description: Compresses images and videos and creates zip artifact for release
 
 inputs:
-  tag_name: 
+  tag_name:
     description: 'The release tag'
     required: false
     type: string
 
-  src_directory: 
+  src_directory:
     description: 'The release directory'
     required: false
     type: string
@@ -18,23 +18,85 @@ inputs:
     required: false
     default: 'true'
 
+  reuse_media:
+    description: 'Reuse images and videos already processed by an earlier release (from its media.zip) when their content is unchanged'
+    required: false
+    default: 'true'
+
 runs:
   using: "composite"
   steps:
-    - name: Install LibVips
-      run: |
-        time ( \
-          sudo apt update; \
-          sudo apt install -y libvips-tools rename libjpeg-turbo8; \
-        )
-      shell: bash
-
     # This step was added due to git not supporting capitalization control. It runs before
     # resizing so that upper-case extensions (.JPG, .PNG, ...) are matched by the resize step.
     - name: Rename all directories and files to lowercase
       run: |
-        time find ./${{ inputs.src_directory }}/* -depth -name "*[A-Z]*" -exec rename -d 'y/A-Z/a-z/' {} \;
-      shell: bash  
+        time find ./${{ inputs.src_directory }}/* -depth -name "*[A-Z]*" -print0 | while IFS= read -r -d '' path; do
+          lower="${path%/*}/$(printf '%s' "${path##*/}" | tr 'A-Z' 'a-z')"
+          if [ -e "$lower" ]; then echo "Not renamed, $lower already exists: $path"; else mv "$path" "$lower"; fi
+        done
+      shell: bash
+
+    # Lists the images over 100 KiB and the videos to process, with a hash of each one's content.
+    # Any that the newest earlier release with a media.zip (built by this same action.yml) already
+    # processed are copied from that media.zip instead, so unchanged media is not processed again.
+    - name: Reuse media processed by an earlier release
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        work="$RUNNER_TEMP/protocol-releaser"
+        rm -rf "$work" && mkdir -p "$work/cache"
+        settings=$(sha256sum "$GITHUB_ACTION_PATH/action.yml" | cut -d' ' -f1)
+        echo "$settings" > "$work/settings"
+
+        find ./${{ inputs.src_directory }}/* -type f \( -name '*.jpeg' -o -name '*.jpg' -o -name '*.png' -o -name '*.gif' \) -size +100k -print0 > "$work/candidates"
+        if [ "${{ inputs.compress_videos }}" = true ]; then find ./${{ inputs.src_directory }}/* -type f -name '*.mp4' -print0 >> "$work/candidates"; fi
+        time xargs -0 -r -P 4 -n 64 sha256sum < "$work/candidates" > "$work/hashes"
+
+        declare -A cached
+        if [ "${{ inputs.reuse_media }}" = true ]; then
+          tag=$(gh api "repos/$GITHUB_REPOSITORY/releases?per_page=30" \
+            --jq '[.[] | select(.draft | not) | select(any(.assets[]; .name == "media.zip"))][0].tag_name // empty' || true)
+          if [ -n "$tag" ] \
+            && gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern media.zip --dir "$work/previous" \
+            && unzip -q "$work/previous/media.zip" -d "$work/cache" \
+            && [ "$(head -n 1 "$work/cache/media-cache.tsv" | cut -f 2)" = "$settings" ]; then
+            while IFS=$'\t' read -r hash file; do
+              if [[ "$file" != *..* ]] && [ -f "$work/cache/$file" ]; then cached[$hash]=$file; fi
+            done < <(tail -n +2 "$work/cache/media-cache.tsv")
+            echo "Using media.zip from release $tag"
+          else
+            echo "No usable media.zip from an earlier release${tag:+ (newest: $tag)}, so all media will be processed"
+          fi
+        fi
+
+        : > "$work/plan"; : > "$work/todo-images"; : > "$work/todo-videos"
+        reused=0
+        while read -r hash path; do
+          printf '%s\t%s\n' "$hash" "$path" >> "$work/plan"
+          if [ -n "${cached[$hash]:-}" ]; then
+            cp "$work/cache/${cached[$hash]}" "$path"
+            reused=$((reused + 1))
+          elif [[ "$path" == *.mp4 ]]; then
+            echo "$path" >> "$work/todo-videos"
+          else
+            echo "$path" >> "$work/todo-images"
+          fi
+        done < "$work/hashes"
+        echo "$(wc -l < "$work/plan") media files: $reused reused, $(wc -l < "$work/todo-images") images and $(wc -l < "$work/todo-videos") videos to process"
+      shell: bash
+
+    - name: Install tools
+      run: |
+        work="$RUNNER_TEMP/protocol-releaser"
+        packages=()
+        if [ -s "$work/todo-images" ]; then packages+=(libvips-tools libjpeg-turbo8); fi
+        if [ -s "$work/todo-videos" ]; then packages+=(ffmpeg); fi
+        if [ ${#packages[@]} -eq 0 ]; then echo "Nothing to process, so nothing to install"; exit 0; fi
+        time ( \
+          sudo apt update; \
+          sudo apt install -y "${packages[@]}"; \
+        )
+      shell: bash
 
     # The '>' in --size means only shrink, never enlarge. parallel -X gives each vipsthumbnail
     # a batch of files (startup is paid per batch, not per file); each output is written next to
@@ -42,12 +104,14 @@ runs:
     # shell, so it needs the inner quotes.
     - name: Resize images to optimized thumbnails
       run: |
+        work="$RUNNER_TEMP/protocol-releaser"
+        if [ ! -s "$work/todo-images" ]; then echo "No images to resize"; exit 0; fi
         time ( \
-          find ./${{ inputs.src_directory }}/* -name '*.jpeg' ! -name '__resized__*' -size +100k | parallel -X vipsthumbnail --size "'650x1300>'" --export-profile srgb -o "'__resized__%s.jpeg[Q=70,profile=none,strip=true]'"; \
-          find ./${{ inputs.src_directory }}/* -name '*.jpg' ! -name '__resized__*' -size +100k | parallel -X vipsthumbnail --size "'650x1300>'" --export-profile srgb -o "'__resized__%s.jpg[Q=70,profile=none,strip=true]'"; \
-          find ./${{ inputs.src_directory }}/* -name '*.png' ! -name '__resized__*' -size +100k | parallel -X vipsthumbnail --size "'650x1300>'" --export-profile srgb -o "'__resized__%s.png[profile=none,strip=true,compression=9]'"; \
-          find ./${{ inputs.src_directory }}/* -name '*.gif' ! -name '__resized__*' -size +100k | parallel -X vipsthumbnail --size "'650x1300>'" --export-profile srgb -o "'__resized__%s.gif[strip=true]'"; \
-          find ./${{ inputs.src_directory }}/* -type f -name '__resized__*' -exec rename -f -d 's/^__resized__//' {} +; \
+          awk '/\.jpeg$/' "$work/todo-images" | parallel -X vipsthumbnail --size "'650x1300>'" --export-profile srgb -o "'__resized__%s.jpeg[Q=70,profile=none,strip=true]'"; \
+          awk '/\.jpg$/' "$work/todo-images" | parallel -X vipsthumbnail --size "'650x1300>'" --export-profile srgb -o "'__resized__%s.jpg[Q=70,profile=none,strip=true]'"; \
+          awk '/\.png$/' "$work/todo-images" | parallel -X vipsthumbnail --size "'650x1300>'" --export-profile srgb -o "'__resized__%s.png[profile=none,strip=true,compression=9]'"; \
+          awk '/\.gif$/' "$work/todo-images" | parallel -X vipsthumbnail --size "'650x1300>'" --export-profile srgb -o "'__resized__%s.gif[strip=true]'"; \
+          while IFS= read -r f; do mv -f "${f%/*}/__resized__${f##*/}" "$f"; done < "$work/todo-images"; \
         )
       shell: bash
 
@@ -55,11 +119,9 @@ runs:
     # 8-bit 4:2:0 so phones can decode it in hardware, AAC 96k audio, and the index moved to the
     # front so playback can start while downloading. A video is only replaced if the result is smaller.
     - name: Compress videos
-      if: inputs.compress_videos == 'true'
       run: |
-        videos=$(find ./${{ inputs.src_directory }}/* -type f -name '*.mp4' ! -name '__resized__*')
-        if [ -z "$videos" ]; then echo "No videos to compress"; exit 0; fi
-        time sudo apt install -y ffmpeg
+        work="$RUNNER_TEMP/protocol-releaser"
+        if [ ! -s "$work/todo-videos" ]; then echo "No videos to compress"; exit 0; fi
         while IFS= read -r f; do
           out="$(dirname "$f")/__resized__$(basename "$f")"
           start=$SECONDS
@@ -71,7 +133,27 @@ runs:
           after=$(stat -c%s "$out")
           if [ "$after" -lt "$before" ]; then mv "$out" "$f"; result=replaced; else rm "$out"; result="kept original (re-encode was not smaller)"; fi
           echo "$f: $((before / 1024)) KB -> $((after / 1024)) KB in $((SECONDS - start))s, $result"
-        done <<< "$videos"
+        done < "$work/todo-videos"
+      shell: bash
+
+    # Splits the release into media.zip (images, videos and audio) and text.zip (everything else),
+    # which together hold the same files as protocol.zip. media.zip also holds media-cache.tsv,
+    # mapping each processed file's original content hash to its path, for later releases to reuse.
+    - name: Create media and text zips
+      run: |
+        work="$RUNNER_TEMP/protocol-releaser"
+        src=./${{ inputs.src_directory }}
+        printf 'settings\t%s\n' "$(cat "$work/settings")" > "$work/media-cache.tsv"
+        while IFS=$'\t' read -r hash path; do printf '%s\t./%s\n' "$hash" "${path#"$src"/}"; done < "$work/plan" >> "$work/media-cache.tsv"
+        media='.*\.(jpe?g|png|gif|webp|svg|mp4|m4v|mov|webm|mp3|m4a|wav|ogg)$'
+        rm -f "$work/media.zip" "$work/text.zip"
+        cd "$src"
+        find . -type f -regextype posix-extended -regex "$media" > "$work/media-files"
+        find . -type f -regextype posix-extended ! -regex "$media" > "$work/text-files"
+        zip -q -j "$work/media.zip" "$work/media-cache.tsv"
+        if [ -s "$work/media-files" ]; then zip -q "$work/media.zip" -@ < "$work/media-files"; fi
+        if [ -s "$work/text-files" ]; then zip -q "$work/text.zip" -@ < "$work/text-files"; fi
+        ls -l "$work"/*.zip
       shell: bash
 
     # For zip -r to do what we want, it is necessary to change directory first
@@ -87,4 +169,6 @@ runs:
         files: |
           ./${{ inputs.src_directory }}/protocol.zip
           ./${{ inputs.src_directory }}/manifest.json
+          ${{ runner.temp }}/protocol-releaser/media.zip
+          ${{ runner.temp }}/protocol-releaser/text.zip
         tag_name: ${{ inputs.tag_name }}
