@@ -1,0 +1,38 @@
+name: Point latest at the latest release
+
+# Protocols run this action as `uses: uvamaplab/protocol-releaser@latest`. This keeps the `latest`
+# tag on whatever release the Releases page marks as latest: publishing a release moves it forward,
+# marking an older release as latest moves it back, and deleting the latest release moves it to the
+# one GitHub then marks. Commits to main move nothing until a release is published from them.
+#
+# GitHub runs a release event's workflow as of that release's commit, so this acts for releases
+# that contain it. To point `latest` at an older release, run this from the Actions tab.
+
+on:
+  release:
+    types: [published, edited, released, deleted, unpublished]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency: latest-tag
+
+jobs:
+  point:
+    runs-on: ubuntu-latest
+    steps:
+      - name: point latest at the release GitHub marks latest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag=$(gh api "repos/$GITHUB_REPOSITORY/releases/latest" --jq .tag_name)
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/commits/$tag" --jq .sha)
+          if gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/latest" >/dev/null 2>&1; then
+            current=$(gh api "repos/$GITHUB_REPOSITORY/commits/latest" --jq .sha)
+            if [ "$current" = "$sha" ]; then echo "latest already points at $tag ($sha)"; exit 0; fi
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/latest" -f sha="$sha" -F force=true >/dev/null
+          else
+            gh api -X POST "repos/$GITHUB_REPOSITORY/git/refs" -f ref=refs/tags/latest -f sha="$sha" >/dev/null
+          fi
+          echo "latest now points at $tag ($sha)"
