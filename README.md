@@ -3,10 +3,13 @@ A GitHub action to prepare and release a protocol for Digital Trails.
 
 ## Branches and releasing
 
-Protocols run this action from `main`: every protocol's `publish_on_release.yml` says
-`uses: uvamaplab/protocol-releaser@main`. So `main` is the release. Work happens on `develop`, the
-default branch; merging `develop` into `main` is what ships, and every protocol's next release uses
-it. Nothing goes out until that merge. To roll back, revert on `main`.
+Protocols run this action as `uses: uvamaplab/protocol-releaser@latest`. The `latest` tag follows
+the release that the Releases page marks as latest: publishing a release moves it forward, and
+marking an older release as latest moves it back, both by the "Point latest at the latest release"
+workflow. Commits move nothing until a release is published.
 
-Tag the merge (`v1.9.0` and so on) and publish a GitHub release for the record. The tag changes
-nothing by itself; `main` is what runs.
+Work lands on `develop`, the default branch. To release, merge `develop` into `main` by pull
+request, tag it (`v1.9.1` and so on) and publish a GitHub release for the tag. GitHub runs a
+release event's workflow as of that release's commit, so the tag follows releases from the first
+one that carries the workflow; to point `latest` at an older release, run the workflow from the
+Actions tab.
